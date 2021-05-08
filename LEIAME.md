@@ -22,6 +22,11 @@
 		- ponto com plano
 
 - 4) (plus) skybox
+
+
+TextureImage3 = cow texture
+unique id CAR (3)
+carmodel
 	
 		
 		
