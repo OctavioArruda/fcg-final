@@ -29,6 +29,16 @@
 #include "utils.h"
 #include "matrices.h"
 
+
+// Variáveis que definem a câmera em coordenadas esféricas, controladas pelo
+// usuário através do mouse (veja função CursorPosCallback()). A posição
+// efetiva da câmera é calculada dentro da função main(), dentro do loop de
+// renderização.
+float g_CameraTheta = 0.0f;    // Ângulo no plano ZX em relação ao eixo Z
+float g_CameraPhi = 0.0f;      // Ângulo em relação ao eixo Y
+float g_CameraDistance = 3.5f; // Distância da câmera para a origem
+
+
 // Estrutura que representa um modelo geométrico carregado a partir de um
 // arquivo ".obj". Veja https://en.wikipedia.org/wiki/Wavefront_.obj_file .
 struct ObjModel
@@ -55,6 +65,20 @@ struct ObjModel
     printf("OK.\n");
   }
 };
+
+struct Player
+{
+    glm::vec4 position_world;
+
+        Player()
+        {
+        position_world      = glm::vec4(0.0f,0.0f,0.0f,1.0f);
+        g_CameraPhi         = 0.0f;
+        g_CameraTheta       = 0.0f;
+        }
+};
+
+Player * player = new Player();
 
 // Declaração de várias funções utilizadas em main().  Essas estão definidas
 // logo após a definição de main() neste arquivo.
@@ -130,8 +154,6 @@ float g_AngleX = 0.0f;
 float g_AngleY = 0.0f;
 float g_AngleZ = 0.0f;
 
-// Distancia modificadora do objeto
-float g_posX = 0.0f;
 
 // "g_LeftMouseButtonPressed = true" se o usuário está com o botão esquerdo do mouse
 // pressionado no momento atual. Veja função MouseButtonCallback().
@@ -139,13 +161,7 @@ bool g_LeftMouseButtonPressed = false;
 bool g_RightMouseButtonPressed = false;  // Análogo para botão direito do mouse
 bool g_MiddleMouseButtonPressed = false; // Análogo para botão do meio do mouse
 
-// Variáveis que definem a câmera em coordenadas esféricas, controladas pelo
-// usuário através do mouse (veja função CursorPosCallback()). A posição
-// efetiva da câmera é calculada dentro da função main(), dentro do loop de
-// renderização.
-float g_CameraTheta = 0.0f;    // Ângulo no plano ZX em relação ao eixo Z
-float g_CameraPhi = 0.0f;      // Ângulo em relação ao eixo Y
-float g_CameraDistance = 3.5f; // Distância da câmera para a origem
+
 
 // Variaveis que controlam o movimento da camera livre.
 float g_camX = 0.0f;
@@ -351,7 +367,7 @@ int main(int argc, char *argv[])
     // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
 
     glm::vec4 camera_position_c = glm::vec4(x , y , z , 1.0f);             // Ponto "c", centro da câmera      
-    glm::vec4 camera_lookat_l = glm::vec4(1.0f, 0.0f, 1.0f, 1.0f);      // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+    glm::vec4 camera_lookat_l = player->position_world;      // Ponto "l", para onde a câmera (look-at) estará sempre olhando
     glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
     glm::vec4 camera_up_vector = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);     // Vetor "up" fixado para apontar para o "céu" (eito Y global)
 
@@ -408,16 +424,14 @@ int main(int argc, char *argv[])
   //  |________________________________________________________________________|
 
       // Desenhamos o modelo do carro (vaca)
-    model = Matrix_Translate(g_posX, -1.1f, 0.0f)
-              * Matrix_Rotate_Z(g_AngleZ)
-              * Matrix_Rotate_X(g_AngleX)
-              * Matrix_Rotate_Y(g_AngleY);
+    model = Matrix_Translate(player->position_world.x,player->position_world.y, player->position_world.z);
+          //    * Matrix_Rotate_Y(g_CameraTheta);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, CAR);
     DrawVirtualObject("car");
 
       // Desenhamos o modelo do solo
-    model = Matrix_Translate(0.0f, -2.0f, 0.0f)
+    model = Matrix_Translate(0.0f, -0.5f, 0.0f)
               * Matrix_Scale(10.0f,1.0f,10.0f);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, GROUND);
@@ -1167,36 +1181,24 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
 
     if (key == GLFW_KEY_W && action == GLFW_PRESS)
   {
-    g_posX += (mod & GLFW_MOD_SHIFT) ? -0.5 : 0.5;
+    player->position_world.x += 1.00;
   }
 
-  // Se o usuário apertar a tecla espaço, resetamos os ângulos de Euler para zero.
-  if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+    if (key == GLFW_KEY_S && action == GLFW_PRESS)
   {
-    g_AngleX = 0.0f;
-    g_AngleY = 0.0f;
-    g_AngleZ = 0.0f;
+    player->position_world.x -= 1.00;
   }
 
-
-  // Se o usuário apertar a 1 a camera de movimenta aumentando sua coordenada X (+Shift diminui a mesma coordenada)
-  // Se o usuário apertar a 2 a camera de movimenta aumentando sua coordenada Y (+Shift diminui a mesma coordenada)
-  // Se o usuário apertar a 3 a camera de movimenta aumentando sua coordenada Z (+Shift diminui a mesma coordenada)
-
-    if (key == GLFW_KEY_M && action == GLFW_PRESS)
+    if (key == GLFW_KEY_D && action == GLFW_PRESS)
   {
-    g_camX += (mod & GLFW_MOD_SHIFT) ? -0.5 : 0.5;
+    player->position_world.z += 1.00;
   }
 
-    if (key == GLFW_KEY_N && action == GLFW_PRESS)
+    if (key == GLFW_KEY_A && action == GLFW_PRESS)
   {
-    g_camY += (mod & GLFW_MOD_SHIFT) ? -0.5 : 0.5;
+    player->position_world.z -= 1.00;
   }
 
-    if (key == GLFW_KEY_B && action == GLFW_PRESS)
-  {
-    g_camZ += (mod & GLFW_MOD_SHIFT) ? -0.5 : 0.5;
-  }
 
   // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
   if (key == GLFW_KEY_P && action == GLFW_PRESS)
