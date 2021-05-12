@@ -19,6 +19,8 @@ uniform mat4 projection;
 
 // Identificador que define qual objeto está sendo desenhado no momento
 #define CAR 0
+#define GROUND 1
+#define SPHERE 2
 
 uniform int object_id;
 
@@ -56,7 +58,7 @@ void main()
     vec4 n = normalize(normal);
 
     // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
-    vec4 l = normalize(vec4(1.0,1.0,0.0,0.0));
+    vec4 l = normalize(light_pos - p);
 
     // Vetor que define o sentido da câmera em relação ao ponto atual.
     vec4 v = normalize(camera_position - p);
@@ -85,6 +87,39 @@ void main()
         Ka = vec3(0.2,0.1,0.1);
         Ks = vec3(0.0,0.0,0.0);
         q = 30.0;
+    }else if( object_id == GROUND )
+    {
+        U = position_model.x;
+        V = position_model.y;
+
+        //Computa a cor da textura neste ponto
+        Kd = vec3(0.2,0.1,0.1);
+        Ka = vec3(0.2,0.1,0.1);
+        Ks = vec3(0.0,0.0,0.0);
+        q = 30.0; 
+    }else if( object_id == SPHERE )
+    {
+        vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
+
+        float sphere_radius = length(position_model - bbox_center);
+
+        float theta = atan(position_model.x,position_model.z);
+        float phi = asin(position_model.y/sphere_radius);
+
+        U = (theta + M_PI)/(2*M_PI);
+        V = (phi + (M_PI/2))/M_PI;
+
+        //Computa a cor da textura neste ponto
+        Kd = texture(TextureImage0, vec2(U,V)).rgb;
+        Ka = vec3(0.2,0.1,0.1);
+        Ks = vec3(0.0,0.0,0.0);
+        q = 30.0; 
+    } else // Objeto desconhecido = preto
+    {
+        Kd = vec3(0.0,0.0,0.0);
+        Ks = vec3(0.0,0.0,0.0);
+        Ka = vec3(0.0,0.0,0.0);
+        q = 1.0;
     }
     
     // Espectro da fonte de iluminação

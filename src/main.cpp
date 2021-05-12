@@ -110,6 +110,7 @@ struct SceneObject
   glm::vec3 bbox_max;
 };
 
+
 // Abaixo definimos variáveis globais utilizadas em várias funções do código.
 
 // A cena virtual é uma lista de objetos nomeados, guardados em um dicionário
@@ -129,6 +130,9 @@ float g_AngleX = 0.0f;
 float g_AngleY = 0.0f;
 float g_AngleZ = 0.0f;
 
+// Distancia modificadora do objeto
+float g_posX = 0.0f;
+
 // "g_LeftMouseButtonPressed = true" se o usuário está com o botão esquerdo do mouse
 // pressionado no momento atual. Veja função MouseButtonCallback().
 bool g_LeftMouseButtonPressed = false;
@@ -143,8 +147,19 @@ float g_CameraTheta = 0.0f;    // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 0.0f;      // Ângulo em relação ao eixo Y
 float g_CameraDistance = 3.5f; // Distância da câmera para a origem
 
+// Variaveis que controlam o movimento da camera livre.
+float g_camX = 0.0f;
+float g_camY = 0.0f;
+float g_camZ = 0.0f;
+
 // Variável que controla o tipo de projeção utilizada: perspectiva ou ortográfica.
 bool g_UsePerspectiveProjection = true;
+
+// Variável que controla o tipo de camera usada.
+bool g_UseCameraModeFree = true;
+
+// Variável que controla o tipo de projeção utilizada: perspectiva ou ortográfica.
+bool g_UseCameraModeLookAt = false;
 
 // Variável que controla se o texto informativo será mostrado na tela.
 bool g_ShowInfoText = true;
@@ -239,12 +254,35 @@ int main(int argc, char *argv[])
   //
   LoadShadersFromFiles();
 
-  // Carregamos duas imagens para serem utilizadas como textura
-  LoadTextureImage("../../data/car/cow-texture.jpg"); // TextureImage0
 
-  ObjModel carmodel("../../data/car/cow.obj");
+
+  //   ________________________________________________________________________
+  //  |                                                                        |
+  //  |                            LOADING TEXTURES                            |
+  //  |________________________________________________________________________|
+
+  LoadTextureImage("../../data/textures/cow_texture.jpg"); // TextureImage0
+  LoadTextureImage("../../data/textures/ground_texture.jpg");// TextureImage1
+  LoadTextureImage("../../data/textures/stone_wall_texture.jpg");// TextureImage2
+
+  //   ________________________________________________________________________
+  //  |                                                                        |
+  //  |                            LOADING OBJECTS                             |
+  //  |________________________________________________________________________|
+
+
+
+  ObjModel carmodel("../../data/cow.obj");
   ComputeNormals(&carmodel);
   BuildTrianglesAndAddToVirtualScene(&carmodel);
+
+  ObjModel groundmodel("../../data/ground.obj");
+  ComputeNormals(&groundmodel);
+  BuildTrianglesAndAddToVirtualScene(&groundmodel);
+
+  ObjModel spheremodel("../../data/sphere.obj");
+  ComputeNormals(&spheremodel);
+  BuildTrianglesAndAddToVirtualScene(&spheremodel);
 
   if (argc > 1)
   {
@@ -269,7 +307,10 @@ int main(int argc, char *argv[])
   glm::mat4 the_model;
   glm::mat4 the_view;
 
-  // Ficamos em loop, renderizando, até que o usuário feche a janela
+   //   ________________________________________________________________________
+  //  |                                                                        |
+  //  |                              MAIN LOOP                                 |
+  //  |________________________________________________________________________|
   while (!glfwWindowShouldClose(window))
   {
     // Aqui executamos as operações de renderização
@@ -290,10 +331,17 @@ int main(int argc, char *argv[])
     // os shaders de vértice e fragmentos).
     glUseProgram(program_id);
 
+
+                //   ________________________________________________________________________
+                //  |                                                                        |
+                //  |                       CAMERA'S POSITION CALCULATION                    |
+                //  |________________________________________________________________________|
+
     // Computamos a posição da câmera utilizando coordenadas esféricas.  As
     // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
     // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
     // e ScrollCallback().
+
     float r = g_CameraDistance;
     float y = r * sin(g_CameraPhi);
     float z = r * cos(g_CameraPhi) * cos(g_CameraTheta);
@@ -301,8 +349,9 @@ int main(int argc, char *argv[])
 
     // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
     // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
-    glm::vec4 camera_position_c = glm::vec4(x, y, z, 1.0f);             // Ponto "c", centro da câmera
-    glm::vec4 camera_lookat_l = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);      // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+
+    glm::vec4 camera_position_c = glm::vec4(x , y , z , 1.0f);             // Ponto "c", centro da câmera      
+    glm::vec4 camera_lookat_l = glm::vec4(1.0f, 0.0f, 1.0f, 1.0f);      // Ponto "l", para onde a câmera (look-at) estará sempre olhando
     glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
     glm::vec4 camera_up_vector = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);     // Vetor "up" fixado para apontar para o "céu" (eito Y global)
 
@@ -348,30 +397,37 @@ int main(int argc, char *argv[])
     glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
 
 #define CAR 0
+#define GROUND 1
+#define SPHERE 2
 
-    // // Desenhamos o modelo da esfera
-    // model = Matrix_Translate(-1.0f, 0.0f, 0.0f) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
-    // glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-    // glUniform1i(object_id_uniform, SPHERE);
-    // DrawVirtualObject("sphere");
 
-    // // Desenhamos o modelo do coelho
-    // model = Matrix_Translate(1.0f, 0.0f, 0.0f) * Matrix_Rotate_X(g_AngleX + (float)glfwGetTime() * 0.1f);
-    // glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-    // glUniform1i(object_id_uniform, BUNNY);
-    // DrawVirtualObject("bunny");
 
-    // // Desenhamos o plano do chão
-    // model = Matrix_Translate(0.0f, -1.1f, 0.0f);
-    // glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-    // glUniform1i(object_id_uniform, PLANE);
-    // DrawVirtualObject("plane");
+  //   ________________________________________________________________________
+  //  |                                                                        |
+  //  |              DRAWING OBJECTS AND HANDLING MOVEMENT                     |
+  //  |________________________________________________________________________|
 
-    // Desenhamos o modelo do carro
-    model = Matrix_Translate(0.0f, -1.1f, 0.0f);
+      // Desenhamos o modelo do carro (vaca)
+    model = Matrix_Translate(g_posX, -1.1f, 0.0f)
+              * Matrix_Rotate_Z(g_AngleZ)
+              * Matrix_Rotate_X(g_AngleX)
+              * Matrix_Rotate_Y(g_AngleY);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, CAR);
     DrawVirtualObject("car");
+
+      // Desenhamos o modelo do solo
+    model = Matrix_Translate(0.0f, -2.0f, 0.0f)
+              * Matrix_Scale(10.0f,1.0f,10.0f);
+    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+    glUniform1i(object_id_uniform, GROUND);
+    DrawVirtualObject("ground");
+
+         // Desenhamos o modelo da esfera
+     model = Matrix_Translate(3.0f, 0.0f, 0.0f) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
+     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+     glUniform1i(object_id_uniform, SPHERE);
+     DrawVirtualObject("sphere");
 
     // Pegamos um vértice com coordenadas de modelo (0.5, 0.5, 0.5, 1) e o
     // passamos por todos os sistemas de coordenadas armazenados nas
@@ -543,8 +599,8 @@ void LoadShadersFromFiles()
   // Variáveis em "shader_fragment.glsl" para acesso das imagens de textura
   glUseProgram(program_id);
   glUniform1i(glGetUniformLocation(program_id, "TextureImage0"), 0);
-  // glUniform1i(glGetUniformLocation(program_id, "TextureImage1"), 1);
-  // glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), 2);
+  glUniform1i(glGetUniformLocation(program_id, "TextureImage1"), 1);
+  glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), 2);
   // glUniform1i(glGetUniformLocation(program_id, "TextureImage3"), 3);
   glUseProgram(0);
 }
@@ -929,6 +985,11 @@ void FramebufferSizeCallback(GLFWwindow *window, int width, int height)
   g_ScreenRatio = (float)width / height;
 }
 
+  //   ________________________________________________________________________
+  //  |                                                                        |
+  //  |                         MOUSE INTERACTIONS                             |
+  //  |________________________________________________________________________|
+
 // Variáveis globais que armazenam a última posição do cursor do mouse, para
 // que possamos calcular quanto que o mouse se movimentou entre dois instantes
 // de tempo. Utilizadas no callback CursorPosCallback() abaixo.
@@ -1058,6 +1119,11 @@ void ScrollCallback(GLFWwindow *window, double xoffset, double yoffset)
     g_CameraDistance = verysmallnumber;
 }
 
+
+  //   ________________________________________________________________________
+  //  |                                                                        |
+  //  |                      KEYBOARD INTERACTIONS                             |
+  //  |________________________________________________________________________|
 // Definição da função que será chamada sempre que o usuário pressionar alguma
 // tecla do teclado. Veja http://www.glfw.org/docs/latest/input_guide.html#input_key
 void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
@@ -1098,12 +1164,38 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
     g_AngleZ += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
   }
 
+
+    if (key == GLFW_KEY_W && action == GLFW_PRESS)
+  {
+    g_posX += (mod & GLFW_MOD_SHIFT) ? -0.5 : 0.5;
+  }
+
   // Se o usuário apertar a tecla espaço, resetamos os ângulos de Euler para zero.
   if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
   {
     g_AngleX = 0.0f;
     g_AngleY = 0.0f;
     g_AngleZ = 0.0f;
+  }
+
+
+  // Se o usuário apertar a 1 a camera de movimenta aumentando sua coordenada X (+Shift diminui a mesma coordenada)
+  // Se o usuário apertar a 2 a camera de movimenta aumentando sua coordenada Y (+Shift diminui a mesma coordenada)
+  // Se o usuário apertar a 3 a camera de movimenta aumentando sua coordenada Z (+Shift diminui a mesma coordenada)
+
+    if (key == GLFW_KEY_M && action == GLFW_PRESS)
+  {
+    g_camX += (mod & GLFW_MOD_SHIFT) ? -0.5 : 0.5;
+  }
+
+    if (key == GLFW_KEY_N && action == GLFW_PRESS)
+  {
+    g_camY += (mod & GLFW_MOD_SHIFT) ? -0.5 : 0.5;
+  }
+
+    if (key == GLFW_KEY_B && action == GLFW_PRESS)
+  {
+    g_camZ += (mod & GLFW_MOD_SHIFT) ? -0.5 : 0.5;
   }
 
   // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
