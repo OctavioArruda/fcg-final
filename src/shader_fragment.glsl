@@ -30,6 +30,8 @@ uniform vec4 bbox_max;
 
 // Variáveis para acesso das imagens de textura
 uniform sampler2D TextureImage0; // cow-texture.jpg
+uniform sampler2D TextureImage1; // stone 
+uniform sampler2D TextureImage2; //
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec3 color;
 
@@ -78,26 +80,36 @@ void main()
 
     if ( object_id == CAR )
     {
-        U = position_model.x;
-        V = position_model.y;
+        float minx = bbox_min.x;
+        float maxx = bbox_max.x;
 
-        //Computa a cor da textura neste ponto
+        float minz = bbox_min.z;
+        float maxz = bbox_max.z;
+
+        U = (position_model.x - minx) / (maxx - minx);
+        V = (position_model.z - minz) / (maxz - minz);
+
         Kd = texture(TextureImage0, vec2(U,V)).rgb;
 
         Ka = vec3(0.2,0.1,0.1);
         Ks = vec3(0.0,0.0,0.0);
         q = 30.0;
-    }else if( object_id == GROUND )
+    } else if( object_id == GROUND )
     {
-        U = position_model.x;
-        V = position_model.y;
+        float minx = bbox_min.x;
+        float maxx = bbox_max.x;
 
-        //Computa a cor da textura neste ponto
-        Kd = vec3(0.2,0.1,0.1);
+        float minz = bbox_min.z;
+        float maxz = bbox_max.z;
+
+        U = (position_model.x - minx)/(maxx - minx);
+        V = (position_model.z - minz)/(maxz - minz);
+
+        Kd = texture(TextureImage1, vec2(U,V)).rgb;
         Ka = vec3(0.2,0.1,0.1);
         Ks = vec3(0.0,0.0,0.0);
         q = 30.0; 
-    }else if( object_id == SPHERE )
+    } else if( object_id == SPHERE )
     {
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
 
@@ -109,12 +121,11 @@ void main()
         U = (theta + M_PI)/(2*M_PI);
         V = (phi + (M_PI/2))/M_PI;
 
-        //Computa a cor da textura neste ponto
-        Kd = texture(TextureImage0, vec2(U,V)).rgb;
+        Kd = texture(TextureImage2, vec2(U,V)).rgb;
         Ka = vec3(0.2,0.1,0.1);
         Ks = vec3(0.0,0.0,0.0);
         q = 30.0; 
-    } else // Objeto desconhecido = preto
+    } else
     {
         Kd = vec3(0.0,0.0,0.0);
         Ks = vec3(0.0,0.0,0.0);
