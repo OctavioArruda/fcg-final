@@ -29,6 +29,7 @@
 #include "utils.h"
 #include "matrices.h"
 
+#define MOVE_SPEED 0.8
 
 // Variáveis que definem a câmera em coordenadas esféricas, controladas pelo
 // usuário através do mouse (veja função CursorPosCallback()). A posição
@@ -37,8 +38,6 @@
 float g_CameraTheta = 0.0f;    // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 0.0f;      // Ângulo em relação ao eixo Y
 float g_CameraDistance = 3.5f; // Distância da câmera para a origem
-
-
 
 // Estrutura que representa um modelo geométrico carregado a partir de um
 // arquivo ".obj". Veja https://en.wikipedia.org/wiki/Wavefront_.obj_file .
@@ -69,27 +68,23 @@ struct ObjModel
 
 struct Player
 {
-    glm::vec4 position_world;
-    glm::vec4 front_direction;
-    glm::vec4 side_direction;
+  glm::vec4 position_world;
+  glm::vec4 front_direction;
+  glm::vec4 side_direction;
 
-        Player()
-        {
-        position_world      = glm::vec4(0.0f,0.0f,0.0f,1.0f);
-        front_direction     = glm::vec4(0.0f,0.0f,0.0f,1.0f);
-        side_direction      = glm::vec4(0.0f,0.0f,0.0f,1.0f);
-        glm::vec3 bbox_min(0.0f,0.0f,0.0f);            // Axis-Aligned Bounding Box do objeto
-        glm::vec3 bbox_max(0.0f,0.0f,0.0f);
-
-        }
+  Player()
+  {
+    position_world = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    front_direction = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    side_direction = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    glm::vec3 bbox_min(0.0f, 0.0f, 0.0f); // Axis-Aligned Bounding Box do objeto
+    glm::vec3 bbox_max(0.0f, 0.0f, 0.0f);
+  }
 };
 
-Player * player = new Player();//Cow-car controlled by the user
+Player *player = new Player(); //Cow-car controlled by the user
 
-Player * obstacle1 = new Player();// Test for collision with spherical 
-
-
-
+Player *obstacle1 = new Player(); // Test for collision with spherical
 
 // Declaração de várias funções utilizadas em main().  Essas estão definidas
 // logo após a definição de main() neste arquivo.
@@ -145,7 +140,6 @@ struct SceneObject
   glm::vec3 bbox_max;
 };
 
-
 // Abaixo definimos variáveis globais utilizadas em várias funções do código.
 
 // A cena virtual é uma lista de objetos nomeados, guardados em um dicionário
@@ -165,14 +159,11 @@ float g_AngleX = 0.0f;
 float g_AngleY = 0.0f;
 float g_AngleZ = 0.0f;
 
-
 // "g_LeftMouseButtonPressed = true" se o usuário está com o botão esquerdo do mouse
 // pressionado no momento atual. Veja função MouseButtonCallback().
 bool g_LeftMouseButtonPressed = false;
 bool g_RightMouseButtonPressed = false;  // Análogo para botão direito do mouse
 bool g_MiddleMouseButtonPressed = false; // Análogo para botão do meio do mouse
-
-
 
 // Variaveis que controlam o movimento da camera livre.
 float g_camX = 0.0f;
@@ -281,23 +272,19 @@ int main(int argc, char *argv[])
   //
   LoadShadersFromFiles();
 
-
-
   //   ________________________________________________________________________
   //  |                                                                        |
   //  |                            LOADING TEXTURES                            |
   //  |________________________________________________________________________|
 
-  LoadTextureImage("../../data/textures/cow_texture.jpg"); // TextureImage0
-  LoadTextureImage("../../data/textures/ground_texture.jpg");// TextureImage1
-  LoadTextureImage("../../data/textures/stone_wall_texture.jpg");// TextureImage2
+  LoadTextureImage("../../data/textures/cow_texture.jpg");        // TextureImage0
+  LoadTextureImage("../../data/textures/ground_texture.jpg");     // TextureImage1
+  LoadTextureImage("../../data/textures/stone_wall_texture.jpg"); // TextureImage2
 
   //   ________________________________________________________________________
   //  |                                                                        |
   //  |                            LOADING OBJECTS                             |
   //  |________________________________________________________________________|
-
-
 
   ObjModel carmodel("../../data/cow.obj");
   ComputeNormals(&carmodel);
@@ -334,7 +321,7 @@ int main(int argc, char *argv[])
   glm::mat4 the_model;
   glm::mat4 the_view;
 
-   //   ________________________________________________________________________
+  //   ________________________________________________________________________
   //  |                                                                        |
   //  |                              RENDER LOOP                               |
   //  |________________________________________________________________________|
@@ -358,11 +345,10 @@ int main(int argc, char *argv[])
     // os shaders de vértice e fragmentos).
     glUseProgram(program_id);
 
-
-                //   ________________________________________________________________________
-                //  |                                                                        |
-                //  |                       CAMERA'S POSITION CALCULATION                    |
-                //  |________________________________________________________________________|
+    //   ________________________________________________________________________
+    //  |                                                                        |
+    //  |                       CAMERA'S POSITION CALCULATION                    |
+    //  |________________________________________________________________________|
 
     // Computamos a posição da câmera utilizando coordenadas esféricas.  As
     // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
@@ -375,18 +361,17 @@ int main(int argc, char *argv[])
     float z = r * cos(g_CameraPhi) * cos(g_CameraTheta) + player->position_world.z;
     float x = r * cos(g_CameraPhi) * sin(g_CameraTheta) + player->position_world.x;
 
-
     // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
     // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
 
-    glm::vec4 camera_position_c = glm::vec4(x , y, z, 1.0f);             // Ponto "c", centro da câmera      
-    glm::vec4 camera_lookat_l = player->position_world;      // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+    glm::vec4 camera_position_c = glm::vec4(x, y, z, 1.0f);             // Ponto "c", centro da câmera
+    glm::vec4 camera_lookat_l = player->position_world;                 // Ponto "l", para onde a câmera (look-at) estará sempre olhando
     glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
 
-    player->front_direction = camera_view_vector/ norm(camera_view_vector);
-    player->side_direction = crossproduct(glm::vec4(0.0f,1.0f,0.0f,0.0f),- player->front_direction);
+    player->front_direction = camera_view_vector / norm(camera_view_vector);
+    player->side_direction = crossproduct(glm::vec4(0.0f, 1.0f, 0.0f, 0.0f), -player->front_direction);
 
-    glm::vec4 camera_up_vector = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);     // Vetor "up" fixado para apontar para o "céu" (eito Y global)
+    glm::vec4 camera_up_vector = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
 
     // Computamos a matriz "View" utilizando os parâmetros da câmera para
     // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
@@ -433,51 +418,48 @@ int main(int argc, char *argv[])
 #define GROUND 1
 #define SPHERE 2
 
-                //   ________________________________________________________________________
-                //  |                                                                        |
-                //  |                       COLLISION CHECKS                                 |
-                //  |________________________________________________________________________|
+    //   ________________________________________________________________________
+    //  |                                                                        |
+    //  |                       COLLISION CHECKS                                 |
+    //  |________________________________________________________________________|
 
+    //   ________________________________________________________________________
+    //  |                                                                        |
+    //  |              DRAWING OBJECTS AND HANDLING MOVEMENT                     |
+    //  |________________________________________________________________________|
 
-  //   ________________________________________________________________________
-  //  |                                                                        |
-  //  |              DRAWING OBJECTS AND HANDLING MOVEMENT                     |
-  //  |________________________________________________________________________|
-
-      // Desenhamos o modelo do carro (vaca)
-    model = Matrix_Translate(player->position_world.x,player->position_world.y, player->position_world.z);
-          //     * Matrix_Rotate_Y(player->front_direction.y);
+    // Desenhamos o modelo do carro (vaca)
+    model = Matrix_Translate(player->position_world.x, player->position_world.y, player->position_world.z);
+    //     * Matrix_Rotate_Y(player->front_direction.y);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, CAR);
     DrawVirtualObject("car");
 
-      // Desenhamos o modelo do solo
-    model = Matrix_Translate(0.0f, -0.5f, 0.0f)
-              * Matrix_Scale(10.0f,1.0f,10.0f);
+    // Desenhamos o modelo do solo
+    model = Matrix_Translate(0.0f, -0.5f, 0.0f) * Matrix_Scale(10.0f, 1.0f, 10.0f);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, GROUND);
     DrawVirtualObject("ground");
 
-         // Desenhamos os modelos de esfera
-     obstacle1->position_world.x = 3.0f;
-     model = Matrix_Translate(obstacle1->position_world.x,obstacle1->position_world.y, obstacle1->position_world.z) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
-     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-     glUniform1i(object_id_uniform, SPHERE);
-     DrawVirtualObject("sphere");
+    // Desenhamos os modelos de esfera
+    obstacle1->position_world.x = 3.0f;
+    model = Matrix_Translate(obstacle1->position_world.x, obstacle1->position_world.y, obstacle1->position_world.z) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
+    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+    glUniform1i(object_id_uniform, SPHERE);
+    DrawVirtualObject("sphere");
 
-     obstacle1->position_world.x = 7.0f;
-     model = Matrix_Translate(obstacle1->position_world.x,obstacle1->position_world.y, obstacle1->position_world.z) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
-     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-     glUniform1i(object_id_uniform, SPHERE);
-     DrawVirtualObject("sphere");
+    obstacle1->position_world.x = 7.0f;
+    model = Matrix_Translate(obstacle1->position_world.x, obstacle1->position_world.y, obstacle1->position_world.z) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
+    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+    glUniform1i(object_id_uniform, SPHERE);
+    DrawVirtualObject("sphere");
 
-     obstacle1->position_world.x = 5.5f;
-     obstacle1->position_world.z = 5.5f;
-     model = Matrix_Translate(obstacle1->position_world.x,obstacle1->position_world.y, obstacle1->position_world.z) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
-     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-     glUniform1i(object_id_uniform, SPHERE);
-     DrawVirtualObject("sphere");
-
+    obstacle1->position_world.x = 5.5f;
+    obstacle1->position_world.z = 5.5f;
+    model = Matrix_Translate(obstacle1->position_world.x, obstacle1->position_world.y, obstacle1->position_world.z) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
+    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+    glUniform1i(object_id_uniform, SPHERE);
+    DrawVirtualObject("sphere");
 
     // Pegamos um vértice com coordenadas de modelo (0.5, 0.5, 0.5, 1) e o
     // passamos por todos os sistemas de coordenadas armazenados nas
@@ -519,7 +501,7 @@ int main(int argc, char *argv[])
   //  |                                                                        |
   //  |                         PROGRAM'S END                                  |
   //  |________________________________________________________________________|
-  
+
   return 0;
 }
 
@@ -1039,10 +1021,10 @@ void FramebufferSizeCallback(GLFWwindow *window, int width, int height)
   g_ScreenRatio = (float)width / height;
 }
 
-  //   ________________________________________________________________________
-  //  |                                                                        |
-  //  |                         MOUSE INTERACTIONS                             |
-  //  |________________________________________________________________________|
+//   ________________________________________________________________________
+//  |                                                                        |
+//  |                         MOUSE INTERACTIONS                             |
+//  |________________________________________________________________________|
 
 // Variáveis globais que armazenam a última posição do cursor do mouse, para
 // que possamos calcular quanto que o mouse se movimentou entre dois instantes
@@ -1175,12 +1157,11 @@ void ScrollCallback(GLFWwindow *window, double xoffset, double yoffset)
 
 bool ObjectCollide(Player movingObject)
 {
-
 }
-  //   ________________________________________________________________________
-  //  |                                                                        |
-  //  |                      KEYBOARD INTERACTIONS                             |
-  //  |________________________________________________________________________|
+//   ________________________________________________________________________
+//  |                                                                        |
+//  |                      KEYBOARD INTERACTIONS                             |
+//  |________________________________________________________________________|
 // Definição da função que será chamada sempre que o usuário pressionar alguma
 // tecla do teclado. Veja http://www.glfw.org/docs/latest/input_guide.html#input_key
 void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
@@ -1221,35 +1202,33 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
     g_AngleZ += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
   }
 
-
-    if (key == GLFW_KEY_W )
+  if (key == GLFW_KEY_W)
   {
-    player->position_world.x += (player->front_direction.x * 0.04) ;
+    player->position_world.x += (player->front_direction.x * MOVE_SPEED);
 
-    player->position_world.z += (player->front_direction.z * 0.04) ;
+    player->position_world.z += (player->front_direction.z * MOVE_SPEED);
   }
 
-    if (key == GLFW_KEY_S )
+  if (key == GLFW_KEY_S)
   {
-    player->position_world.x -= (player->front_direction.x * 0.04) ;
+    player->position_world.x -= (player->front_direction.x * MOVE_SPEED);
 
-    player->position_world.z -= (player->front_direction.z * 0.04) ;
+    player->position_world.z -= (player->front_direction.z * MOVE_SPEED);
   }
 
-    if (key == GLFW_KEY_D )
+  if (key == GLFW_KEY_D)
   {
-    player->position_world.x += (player->side_direction.x * 0.04) ;
+    player->position_world.x += (player->side_direction.x * MOVE_SPEED);
 
-    player->position_world.z += (player->side_direction.z * 0.04) ;
+    player->position_world.z += (player->side_direction.z * MOVE_SPEED);
   }
 
-    if (key == GLFW_KEY_A )
+  if (key == GLFW_KEY_A)
   {
-    player->position_world.x -= (player->side_direction.x * 0.04) ;
+    player->position_world.x -= (player->side_direction.x * MOVE_SPEED);
 
-    player->position_world.z -= (player->side_direction.z * 0.04) ;
+    player->position_world.z -= (player->side_direction.z * MOVE_SPEED);
   }
-
 
   // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
   if (key == GLFW_KEY_P && action == GLFW_PRESS)
