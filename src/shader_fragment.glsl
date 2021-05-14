@@ -21,6 +21,7 @@ uniform mat4 projection;
 #define CAR 0
 #define GROUND 1
 #define SPHERE 2
+#define BUNNY 3
 
 uniform int object_id;
 
@@ -125,6 +126,22 @@ void main()
         Ka = vec3(0.2,0.1,0.1);
         Ks = vec3(0.0,0.0,0.0);
         q = 30.0; 
+    }else if( object_id == BUNNY )
+    {
+        float minx = bbox_min.x;
+        float maxx = bbox_max.x;
+
+        float minz = bbox_min.z;
+        float maxz = bbox_max.z;
+
+        U = (position_model.x - minx) / (maxx - minx);
+        V = (position_model.z - minz) / (maxz - minz);
+
+        Kd = texture(TextureImage2, vec2(U,V)).rgb;
+
+        Ka = vec3(0.2,0.1,0.1);
+        Ks = vec3(0.0,0.0,0.0);
+        q = 10.0; 
     } else
     {
         Kd = vec3(0.0,0.0,0.0);

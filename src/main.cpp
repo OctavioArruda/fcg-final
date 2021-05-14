@@ -30,6 +30,7 @@
 #include "matrices.h"
 
 #define MOVE_SPEED 0.8
+#define FREECAMERA_SPEED 0.8
 
 // Variáveis que definem a câmera em coordenadas esféricas, controladas pelo
 // usuário através do mouse (veja função CursorPosCallback()). A posição
@@ -38,6 +39,7 @@
 float g_CameraTheta = 0.0f;    // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 0.0f;      // Ângulo em relação ao eixo Y
 float g_CameraDistance = 3.5f; // Distância da câmera para a origem
+glm::vec4 g_FreeCameraPosition = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f); // Posicao do centro da camera quando no mode Free Camera
 
 // Estrutura que representa um modelo geométrico carregado a partir de um
 // arquivo ".obj". Veja https://en.wikipedia.org/wiki/Wavefront_.obj_file .
@@ -71,7 +73,8 @@ struct Player
   glm::vec4 position_world;
   glm::vec4 front_direction;
   glm::vec4 side_direction;
-
+  glm::vec3 bbox_min;
+  glm::vec3 bbox_max;
   Player()
   {
     position_world = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -82,9 +85,24 @@ struct Player
   }
 };
 
+struct SquareHitBoxObstacle
+{
+  glm::vec4 position_world;
+  glm::vec3 bbox_min;
+  glm::vec3 bbox_max;
+  SquareHitBoxObstacle()
+  {
+    position_world = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    glm::vec3 bbox_min(0.0f, 0.0f, 0.0f); // Axis-Aligned Bounding Box do objeto
+    glm::vec3 bbox_max(0.0f, 0.0f, 0.0f);
+  }
+};
+
 Player *player = new Player(); //Cow-car controlled by the user
 
-Player *obstacle1 = new Player(); // Test for collision with spherical
+SquareHitBoxObstacle *obstacle1 = new SquareHitBoxObstacle(); // Test for collision with spherical objects
+SquareHitBoxObstacle *obstacle2 = new SquareHitBoxObstacle(); // Bunny
+
 
 // Declaração de várias funções utilizadas em main().  Essas estão definidas
 // logo após a definição de main() neste arquivo.
@@ -116,6 +134,7 @@ void TextRendering_PrintMatrixVectorProductDivW(GLFWwindow *window, glm::mat4 M,
 void TextRendering_ShowModelViewProjection(GLFWwindow *window, glm::mat4 projection, glm::mat4 view, glm::mat4 model, glm::vec4 p_model);
 void TextRendering_ShowEulerAngles(GLFWwindow *window);
 void TextRendering_ShowProjection(GLFWwindow *window);
+void TextRendering_ShowCameraMode(GLFWwindow *window);
 void TextRendering_ShowFramesPerSecond(GLFWwindow *window);
 
 // Funções callback para comunicação com o sistema operacional e interação do
@@ -174,10 +193,7 @@ float g_camZ = 0.0f;
 bool g_UsePerspectiveProjection = true;
 
 // Variável que controla o tipo de camera usada.
-bool g_UseCameraModeFree = true;
-
-// Variável que controla o tipo de projeção utilizada: perspectiva ou ortográfica.
-bool g_UseCameraModeLookAt = false;
+bool g_UseCameraModeFree = false;
 
 // Variável que controla se o texto informativo será mostrado na tela.
 bool g_ShowInfoText = true;
@@ -298,6 +314,10 @@ int main(int argc, char *argv[])
   ComputeNormals(&spheremodel);
   BuildTrianglesAndAddToVirtualScene(&spheremodel);
 
+  ObjModel bunnymodel("../../data/bunny.obj");
+  ComputeNormals(&bunnymodel);
+  BuildTrianglesAndAddToVirtualScene(&bunnymodel);
+
   if (argc > 1)
   {
     ObjModel model(argv[1]);
@@ -356,16 +376,34 @@ int main(int argc, char *argv[])
     // player-> position_world.x y e z sao as coordenadas onde o jogador de se encontra.
     // Veja as funções CursorPosCallback() e ScrollCallback().
 
-    float r = g_CameraDistance;
-    float y = r * sin(g_CameraPhi) + player->position_world.y;
-    float z = r * cos(g_CameraPhi) * cos(g_CameraTheta) + player->position_world.z;
-    float x = r * cos(g_CameraPhi) * sin(g_CameraTheta) + player->position_world.x;
+    float r = 0.00;
+    float y = 0.00;
+    float z = 0.00;
+    float x = 0.00;
+
+    glm::vec4 camera_lookat_l =glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    r = g_CameraDistance;
+
+      if(g_UseCameraModeFree){
+         
+         y = r * sin(g_CameraPhi) + g_FreeCameraPosition.y;
+         z = r * cos(g_CameraPhi) * cos(g_CameraTheta) + g_FreeCameraPosition.z;
+         x = r * cos(g_CameraPhi) * sin(g_CameraTheta) + g_FreeCameraPosition.x;
+         camera_lookat_l = g_FreeCameraPosition;                 // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+      }else{
+         
+         y = r * sin(g_CameraPhi) + player->position_world.y;
+         z = r * cos(g_CameraPhi) * cos(g_CameraTheta) + player->position_world.z;
+         x = r * cos(g_CameraPhi) * sin(g_CameraTheta) + player->position_world.x;
+         camera_lookat_l = player->position_world;                 // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+         
+      }
+    
 
     // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
     // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
 
     glm::vec4 camera_position_c = glm::vec4(x, y, z, 1.0f);             // Ponto "c", centro da câmera
-    glm::vec4 camera_lookat_l = player->position_world;                 // Ponto "l", para onde a câmera (look-at) estará sempre olhando
     glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
 
     player->front_direction = camera_view_vector / norm(camera_view_vector);
@@ -417,6 +455,7 @@ int main(int argc, char *argv[])
 #define CAR 0
 #define GROUND 1
 #define SPHERE 2
+#define BUNNY 3
 
     //   ________________________________________________________________________
     //  |                                                                        |
@@ -441,6 +480,15 @@ int main(int argc, char *argv[])
     glUniform1i(object_id_uniform, GROUND);
     DrawVirtualObject("ground");
 
+    // Desenhamos o coelho
+    obstacle2->position_world.y = 0.5f;
+    obstacle2->position_world.x = -2.5f;
+    obstacle2->position_world.z = -2.5f;
+    model = Matrix_Translate(obstacle2->position_world.x, obstacle2->position_world.y, obstacle2->position_world.z);
+    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+    glUniform1i(object_id_uniform, BUNNY);
+    DrawVirtualObject("bunny");
+
     // Desenhamos os modelos de esfera
     obstacle1->position_world.x = 3.0f;
     model = Matrix_Translate(obstacle1->position_world.x, obstacle1->position_world.y, obstacle1->position_world.z) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
@@ -461,6 +509,8 @@ int main(int argc, char *argv[])
     glUniform1i(object_id_uniform, SPHERE);
     DrawVirtualObject("sphere");
 
+
+
     // Pegamos um vértice com coordenadas de modelo (0.5, 0.5, 0.5, 1) e o
     // passamos por todos os sistemas de coordenadas armazenados nas
     // matrizes the_model, the_view, e the_projection; e escrevemos na tela
@@ -474,6 +524,9 @@ int main(int argc, char *argv[])
 
     // Imprimimos na informação sobre a matriz de projeção sendo utilizada.
     TextRendering_ShowProjection(window);
+
+    // Imprimimos na informação sobre o modo de camera sendo utilizado.
+    TextRendering_ShowCameraMode(window);
 
     // Imprimimos na tela informação sobre o número de quadros renderizados
     // por segundo (frames per second).
@@ -1155,8 +1208,11 @@ void ScrollCallback(GLFWwindow *window, double xoffset, double yoffset)
     g_CameraDistance = verysmallnumber;
 }
 
-bool ObjectCollide(Player movingObject)
+bool ObjectCollide(Player player,SquareHitBoxObstacle obstacle)
 {
+  return ((player.bbox_min.x <= obstacle.bbox_max.x && player.bbox_max.x >= obstacle.bbox_min.x) &&
+          (player.bbox_min.y <= obstacle.bbox_max.y && player.bbox_max.y >= obstacle.bbox_min.y) &&
+          (player.bbox_min.z <= obstacle.bbox_max.z && player.bbox_max.z >= obstacle.bbox_min.z));
 }
 //   ________________________________________________________________________
 //  |                                                                        |
@@ -1186,22 +1242,23 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
   //   Se apertar tecla Z       então g_AngleZ += delta;
   //   Se apertar tecla shift+Z então g_AngleZ -= delta;
 
-  float delta = 3.141592 / 16; // 22.5 graus, em radianos.
+  //float delta = 3.141592 / 16; // 22.5 graus, em radianos.
 
-  if (key == GLFW_KEY_X && action == GLFW_PRESS)
-  {
-    g_AngleX += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-  }
+  // if (key == GLFW_KEY_X && action == GLFW_PRESS)
+  // {
+  //   g_AngleX += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
+  // }
 
-  if (key == GLFW_KEY_Y && action == GLFW_PRESS)
-  {
-    g_AngleY += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-  }
-  if (key == GLFW_KEY_Z && action == GLFW_PRESS)
-  {
-    g_AngleZ += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-  }
+  // if (key == GLFW_KEY_Y && action == GLFW_PRESS)
+  // {
+  //   g_AngleY += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
+  // }
+  // if (key == GLFW_KEY_Z && action == GLFW_PRESS)
+  // {
+  //   g_AngleZ += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
+  // }
 
+    //PLAYER'S MOVEMENT INPUTS
   if (key == GLFW_KEY_W)
   {
     player->position_world.x += (player->front_direction.x * MOVE_SPEED);
@@ -1229,7 +1286,24 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
 
     player->position_world.z -= (player->side_direction.z * MOVE_SPEED);
   }
+    //CAMERA'S MOVEMENT INPUTS IN FREE CAMERA MODE
+    if (key == GLFW_KEY_X)
+  {
+    g_FreeCameraPosition.x += (mod & GLFW_MOD_SHIFT) ? -FREECAMERA_SPEED : FREECAMERA_SPEED;
+  }
 
+  if (key == GLFW_KEY_Y)
+  {
+     g_FreeCameraPosition.y += (mod & GLFW_MOD_SHIFT) ? -FREECAMERA_SPEED : FREECAMERA_SPEED;
+
+  }
+
+  if (key == GLFW_KEY_Z)
+  {
+     g_FreeCameraPosition.z += (mod & GLFW_MOD_SHIFT) ? -FREECAMERA_SPEED : FREECAMERA_SPEED;
+
+  }
+  
   // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
   if (key == GLFW_KEY_P && action == GLFW_PRESS)
   {
@@ -1246,6 +1320,11 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
   if (key == GLFW_KEY_H && action == GLFW_PRESS)
   {
     g_ShowInfoText = !g_ShowInfoText;
+  }
+ // Se o usuário apertar a tecla F, fazemos um "toggle" entre mode de camera LookAt e Free Camera.
+  if (key == GLFW_KEY_F && action == GLFW_PRESS)
+  {
+    g_UseCameraModeFree = !g_UseCameraModeFree;
   }
 
   // Se o usuário apertar a tecla R, recarregamos os shaders dos arquivos "shader_fragment.glsl" e "shader_vertex.glsl".
@@ -1333,7 +1412,7 @@ void TextRendering_ShowEulerAngles(GLFWwindow *window)
   float pad = TextRendering_LineHeight(window);
 
   char buffer[80];
-  snprintf(buffer, 80, "Euler Angles rotation matrix = Z(%.2f)*Y(%.2f)*X(%.2f)\n", g_AngleZ, g_AngleY, g_AngleX);
+  snprintf(buffer, 80, "Player position = Z(%.2f) Y(%.2f) X(%.2f)\n", player->position_world.z, player->position_world.z, player->position_world.z);
 
   TextRendering_PrintString(window, buffer, -1.0f + pad / 10, -1.0f + 2 * pad / 10, 1.0f);
 }
@@ -1351,6 +1430,21 @@ void TextRendering_ShowProjection(GLFWwindow *window)
     TextRendering_PrintString(window, "Perspective", 1.0f - 13 * charwidth, -1.0f + 2 * lineheight / 10, 1.0f);
   else
     TextRendering_PrintString(window, "Orthographic", 1.0f - 13 * charwidth, -1.0f + 2 * lineheight / 10, 1.0f);
+}
+
+// Escrevemos na tela qual o tipo de camera que esta sendo usado.
+void TextRendering_ShowCameraMode(GLFWwindow *window)
+{
+  if (!g_ShowInfoText)
+    return;
+
+  float lineheight = TextRendering_LineHeight(window);
+  float charwidth = TextRendering_CharWidth(window);
+
+  if (g_UseCameraModeFree)
+    TextRendering_PrintString(window, "Free Camera", 1.0f - 30 * charwidth, -1.0f + 2 * lineheight / 10, 1.0f);
+  else
+    TextRendering_PrintString(window, "Look At", 1.0f - 30 * charwidth, -1.0f + 2 * lineheight / 10, 1.0f);
 }
 
 // Escrevemos na tela o número de quadros renderizados por segundo (frames per
