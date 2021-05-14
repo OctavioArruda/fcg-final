@@ -39,6 +39,7 @@ float g_CameraPhi = 0.0f;      // Ângulo em relação ao eixo Y
 float g_CameraDistance = 3.5f; // Distância da câmera para a origem
 
 
+
 // Estrutura que representa um modelo geométrico carregado a partir de um
 // arquivo ".obj". Veja https://en.wikipedia.org/wiki/Wavefront_.obj_file .
 struct ObjModel
@@ -69,16 +70,26 @@ struct ObjModel
 struct Player
 {
     glm::vec4 position_world;
+    glm::vec4 front_direction;
+    glm::vec4 side_direction;
 
         Player()
         {
         position_world      = glm::vec4(0.0f,0.0f,0.0f,1.0f);
-        g_CameraPhi         = 0.0f;
-        g_CameraTheta       = 0.0f;
+        front_direction     = glm::vec4(0.0f,0.0f,0.0f,1.0f);
+        side_direction      = glm::vec4(0.0f,0.0f,0.0f,1.0f);
+        glm::vec3 bbox_min(0.0f,0.0f,0.0f);            // Axis-Aligned Bounding Box do objeto
+        glm::vec3 bbox_max(0.0f,0.0f,0.0f);
+
         }
 };
 
-Player * player = new Player();
+Player * player = new Player();//Cow-car controlled by the user
+
+Player * obstacle1 = new Player();// Test for collision with spherical 
+
+
+
 
 // Declaração de várias funções utilizadas em main().  Essas estão definidas
 // logo após a definição de main() neste arquivo.
@@ -325,7 +336,7 @@ int main(int argc, char *argv[])
 
    //   ________________________________________________________________________
   //  |                                                                        |
-  //  |                              MAIN LOOP                                 |
+  //  |                              RENDER LOOP                               |
   //  |________________________________________________________________________|
   while (!glfwWindowShouldClose(window))
   {
@@ -355,20 +366,26 @@ int main(int argc, char *argv[])
 
     // Computamos a posição da câmera utilizando coordenadas esféricas.  As
     // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
-    // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
-    // e ScrollCallback().
+    // controladas pelo mouse do usuário.
+    // player-> position_world.x y e z sao as coordenadas onde o jogador de se encontra.
+    // Veja as funções CursorPosCallback() e ScrollCallback().
 
     float r = g_CameraDistance;
-    float y = r * sin(g_CameraPhi);
-    float z = r * cos(g_CameraPhi) * cos(g_CameraTheta);
-    float x = r * cos(g_CameraPhi) * sin(g_CameraTheta);
+    float y = r * sin(g_CameraPhi) + player->position_world.y;
+    float z = r * cos(g_CameraPhi) * cos(g_CameraTheta) + player->position_world.z;
+    float x = r * cos(g_CameraPhi) * sin(g_CameraTheta) + player->position_world.x;
+
 
     // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
     // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
 
-    glm::vec4 camera_position_c = glm::vec4(x , y , z , 1.0f);             // Ponto "c", centro da câmera      
+    glm::vec4 camera_position_c = glm::vec4(x , y, z, 1.0f);             // Ponto "c", centro da câmera      
     glm::vec4 camera_lookat_l = player->position_world;      // Ponto "l", para onde a câmera (look-at) estará sempre olhando
     glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
+
+    player->front_direction = camera_view_vector/ norm(camera_view_vector);
+    player->side_direction = crossproduct(glm::vec4(0.0f,1.0f,0.0f,0.0f),- player->front_direction);
+
     glm::vec4 camera_up_vector = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);     // Vetor "up" fixado para apontar para o "céu" (eito Y global)
 
     // Computamos a matriz "View" utilizando os parâmetros da câmera para
@@ -416,6 +433,10 @@ int main(int argc, char *argv[])
 #define GROUND 1
 #define SPHERE 2
 
+                //   ________________________________________________________________________
+                //  |                                                                        |
+                //  |                       COLLISION CHECKS                                 |
+                //  |________________________________________________________________________|
 
 
   //   ________________________________________________________________________
@@ -425,7 +446,7 @@ int main(int argc, char *argv[])
 
       // Desenhamos o modelo do carro (vaca)
     model = Matrix_Translate(player->position_world.x,player->position_world.y, player->position_world.z);
-          //    * Matrix_Rotate_Y(g_CameraTheta);
+          //     * Matrix_Rotate_Y(player->front_direction.y);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, CAR);
     DrawVirtualObject("car");
@@ -437,11 +458,26 @@ int main(int argc, char *argv[])
     glUniform1i(object_id_uniform, GROUND);
     DrawVirtualObject("ground");
 
-         // Desenhamos o modelo da esfera
-     model = Matrix_Translate(3.0f, 0.0f, 0.0f) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
+         // Desenhamos os modelos de esfera
+     obstacle1->position_world.x = 3.0f;
+     model = Matrix_Translate(obstacle1->position_world.x,obstacle1->position_world.y, obstacle1->position_world.z) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
      glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
      glUniform1i(object_id_uniform, SPHERE);
      DrawVirtualObject("sphere");
+
+     obstacle1->position_world.x = 7.0f;
+     model = Matrix_Translate(obstacle1->position_world.x,obstacle1->position_world.y, obstacle1->position_world.z) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
+     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+     glUniform1i(object_id_uniform, SPHERE);
+     DrawVirtualObject("sphere");
+
+     obstacle1->position_world.x = 5.5f;
+     obstacle1->position_world.z = 5.5f;
+     model = Matrix_Translate(obstacle1->position_world.x,obstacle1->position_world.y, obstacle1->position_world.z) * Matrix_Rotate_Z(0.6f) * Matrix_Rotate_X(0.2f) * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
+     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+     glUniform1i(object_id_uniform, SPHERE);
+     DrawVirtualObject("sphere");
+
 
     // Pegamos um vértice com coordenadas de modelo (0.5, 0.5, 0.5, 1) e o
     // passamos por todos os sistemas de coordenadas armazenados nas
@@ -479,7 +515,11 @@ int main(int argc, char *argv[])
   // Finalizamos o uso dos recursos do sistema operacional
   glfwTerminate();
 
-  // Fim do programa
+  //   ________________________________________________________________________
+  //  |                                                                        |
+  //  |                         PROGRAM'S END                                  |
+  //  |________________________________________________________________________|
+  
   return 0;
 }
 
@@ -1133,7 +1173,10 @@ void ScrollCallback(GLFWwindow *window, double xoffset, double yoffset)
     g_CameraDistance = verysmallnumber;
 }
 
+bool ObjectCollide(Player movingObject)
+{
 
+}
   //   ________________________________________________________________________
   //  |                                                                        |
   //  |                      KEYBOARD INTERACTIONS                             |
@@ -1179,24 +1222,32 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
   }
 
 
-    if (key == GLFW_KEY_W && action == GLFW_PRESS)
+    if (key == GLFW_KEY_W )
   {
-    player->position_world.x += 1.00;
+    player->position_world.x += (player->front_direction.x * 0.04) ;
+
+    player->position_world.z += (player->front_direction.z * 0.04) ;
   }
 
-    if (key == GLFW_KEY_S && action == GLFW_PRESS)
+    if (key == GLFW_KEY_S )
   {
-    player->position_world.x -= 1.00;
+    player->position_world.x -= (player->front_direction.x * 0.04) ;
+
+    player->position_world.z -= (player->front_direction.z * 0.04) ;
   }
 
-    if (key == GLFW_KEY_D && action == GLFW_PRESS)
+    if (key == GLFW_KEY_D )
   {
-    player->position_world.z += 1.00;
+    player->position_world.x += (player->side_direction.x * 0.04) ;
+
+    player->position_world.z += (player->side_direction.z * 0.04) ;
   }
 
-    if (key == GLFW_KEY_A && action == GLFW_PRESS)
+    if (key == GLFW_KEY_A )
   {
-    player->position_world.z -= 1.00;
+    player->position_world.x -= (player->side_direction.x * 0.04) ;
+
+    player->position_world.z -= (player->side_direction.z * 0.04) ;
   }
 
 
