@@ -652,7 +652,7 @@
 	<fstream>
 	<sstream>
 
-1620957729 source:c:\users\octavioarruda\documents\estudo\fcg\laboratorio_5_codigo_fonte\src\main.cpp
+1621043857 source:c:\users\octavioarruda\documents\estudo\fcg\laboratorio_5_codigo_fonte\src\main.cpp
 	<cmath>
 	<cstdio>
 	<cstdlib>
@@ -674,6 +674,7 @@
 	<stb_image.h>
 	"utils.h"
 	"matrices.h"
+	"collisions.h"
 
 1620437824 c:\users\octavioarruda\documents\estudo\fcg\laboratorio_5_codigo_fonte\include\glm\gtc\type_ptr.hpp
 	"../gtc/quaternion.hpp"
@@ -2824,4 +2825,9 @@
 
 1620959826 source:d:\trabalho_final_fcg\fcg-final\src\tiny_obj_loader.cpp
 	"tiny_obj_loader.h"
+
+1621043370 c:\users\octavioarruda\documents\estudo\fcg\laboratorio_5_codigo_fonte\include\collisions.h
+	<glm/mat4x4.hpp>
+	<glm/vec4.hpp>
+	<glm/gtc/type_ptr.hpp>
 

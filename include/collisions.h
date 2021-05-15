@@ -1,7 +1,7 @@
 
- #include <glm/mat4x4.hpp>
- #include <glm/vec4.hpp>
- #include <glm/gtc/type_ptr.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec4.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 struct SceneObject
 {
@@ -14,5 +14,11 @@ struct SceneObject
   glm::vec3 bbox_max;
 };
 
-bool collisionBoxBox(SceneObject first,SceneObject second);
+bool collisionBoxBox(SceneObject first, SceneObject second);
 
+bool collisionBoxBox(SceneObject first, SceneObject second)
+{
+  return (first.bbox_min.x <= second.bbox_max.x && first.bbox_max.x >= second.bbox_min.x) &&
+         (first.bbox_min.y <= second.bbox_max.y && first.bbox_max.y >= second.bbox_min.z) &&
+         (first.bbox_min.z <= second.bbox_max.z && first.bbox_max.z >= second.bbox_min.y);
+}

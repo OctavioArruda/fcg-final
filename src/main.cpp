@@ -28,7 +28,7 @@
 // Headers locais, definidos na pasta "include/"
 #include "utils.h"
 #include "matrices.h"
-#include "structs.h"
+#include "collisions.h"
 
 #define MOVE_SPEED 0.8
 #define FREECAMERA_SPEED 0.8
@@ -37,9 +37,9 @@
 // usuário através do mouse (veja função CursorPosCallback()). A posição
 // efetiva da câmera é calculada dentro da função main(), dentro do loop de
 // renderização.
-float g_CameraTheta = 0.0f;    // Ângulo no plano ZX em relação ao eixo Z
-float g_CameraPhi = 0.0f;      // Ângulo em relação ao eixo Y
-float g_CameraDistance = 3.5f; // Distância da câmera para a origem
+float g_CameraTheta = 0.0f;                                         // Ângulo no plano ZX em relação ao eixo Z
+float g_CameraPhi = 0.0f;                                           // Ângulo em relação ao eixo Y
+float g_CameraDistance = 3.5f;                                      // Distância da câmera para a origem
 glm::vec4 g_FreeCameraPosition = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f); // Posicao do centro da camera quando no mode Free Camera
 
 // Estrutura que representa um modelo geométrico carregado a partir de um
@@ -103,7 +103,6 @@ Player *player = new Player(); //Cow-car controlled by the user
 
 SquareHitBoxObstacle *obstacle1 = new SquareHitBoxObstacle(); // Test for collision with spherical objects
 SquareHitBoxObstacle *obstacle2 = new SquareHitBoxObstacle(); // Bunny
-
 
 // Declaração de várias funções utilizadas em main().  Essas estão definidas
 // logo após a definição de main() neste arquivo.
@@ -369,24 +368,25 @@ int main(int argc, char *argv[])
     float z = 0.00;
     float x = 0.00;
 
-    glm::vec4 camera_lookat_l =glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    glm::vec4 camera_lookat_l = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
     r = g_CameraDistance;
 
-      if(g_UseCameraModeFree){
-         
-         y = r * sin(g_CameraPhi) + g_FreeCameraPosition.y;
-         z = r * cos(g_CameraPhi) * cos(g_CameraTheta) + g_FreeCameraPosition.z;
-         x = r * cos(g_CameraPhi) * sin(g_CameraTheta) + g_FreeCameraPosition.x;
-         camera_lookat_l = g_FreeCameraPosition;                 // Ponto "l", para onde a câmera (look-at) estará sempre olhando
-      }else{
-         
-         y = r * sin(g_CameraPhi) + player->position_world.y;
-         z = r * cos(g_CameraPhi) * cos(g_CameraTheta) + player->position_world.z;
-         x = r * cos(g_CameraPhi) * sin(g_CameraTheta) + player->position_world.x;
-         camera_lookat_l = player->position_world;                 // Ponto "l", para onde a câmera (look-at) estará sempre olhando
-         
-      }
-    
+    if (g_UseCameraModeFree)
+    {
+
+      y = r * sin(g_CameraPhi) + g_FreeCameraPosition.y;
+      z = r * cos(g_CameraPhi) * cos(g_CameraTheta) + g_FreeCameraPosition.z;
+      x = r * cos(g_CameraPhi) * sin(g_CameraTheta) + g_FreeCameraPosition.x;
+      camera_lookat_l = g_FreeCameraPosition; // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+    }
+    else
+    {
+
+      y = r * sin(g_CameraPhi) + player->position_world.y;
+      z = r * cos(g_CameraPhi) * cos(g_CameraTheta) + player->position_world.z;
+      x = r * cos(g_CameraPhi) * sin(g_CameraTheta) + player->position_world.x;
+      camera_lookat_l = player->position_world; // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+    }
 
     // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
     // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
@@ -496,8 +496,6 @@ int main(int argc, char *argv[])
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, SPHERE);
     DrawVirtualObject("sphere");
-
-
 
     // Pegamos um vértice com coordenadas de modelo (0.5, 0.5, 0.5, 1) e o
     // passamos por todos os sistemas de coordenadas armazenados nas
@@ -1196,7 +1194,7 @@ void ScrollCallback(GLFWwindow *window, double xoffset, double yoffset)
     g_CameraDistance = verysmallnumber;
 }
 
-bool ObjectCollide(Player player,SquareHitBoxObstacle obstacle)
+bool ObjectCollide(Player player, SquareHitBoxObstacle obstacle)
 {
   return ((player.bbox_min.x <= obstacle.bbox_max.x && player.bbox_max.x >= obstacle.bbox_min.x) &&
           (player.bbox_min.y <= obstacle.bbox_max.y && player.bbox_max.y >= obstacle.bbox_min.y) &&
@@ -1222,36 +1220,22 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     glfwSetWindowShouldClose(window, GL_TRUE);
 
-  // O código abaixo implementa a seguinte lógica:
-  //   Se apertar tecla X       então g_AngleX += delta;
-  //   Se apertar tecla shift+X então g_AngleX -= delta;
-  //   Se apertar tecla Y       então g_AngleY += delta;
-  //   Se apertar tecla shift+Y então g_AngleY -= delta;
-  //   Se apertar tecla Z       então g_AngleZ += delta;
-  //   Se apertar tecla shift+Z então g_AngleZ -= delta;
-
-  //float delta = 3.141592 / 16; // 22.5 graus, em radianos.
-
-  // if (key == GLFW_KEY_X && action == GLFW_PRESS)
-  // {
-  //   g_AngleX += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-  // }
-
-  // if (key == GLFW_KEY_Y && action == GLFW_PRESS)
-  // {
-  //   g_AngleY += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-  // }
-  // if (key == GLFW_KEY_Z && action == GLFW_PRESS)
-  // {
-  //   g_AngleZ += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-  // }
-
-    //PLAYER'S MOVEMENT INPUTS
+  // PLAYER'S MOVEMENT INPUTS
   if (key == GLFW_KEY_W)
   {
     player->position_world.x += (player->front_direction.x * MOVE_SPEED);
-
     player->position_world.z += (player->front_direction.z * MOVE_SPEED);
+    player->bbox_min.x += player->front_direction.x * MOVE_SPEED;
+    player->bbox_max.x += player->front_direction.z * MOVE_SPEED;
+    g_VirtualScene["car"].bbox_min.x = player->bbox_min.x;
+    g_VirtualScene["car"].bbox_min.z = player->bbox_min.z;
+
+    if (collisionBoxBox(g_VirtualScene["car"], g_VirtualScene["bunny"]))
+    {
+      player->position_world.x = 0.0f;
+      player->position_world.y = 0.0f;
+      player->position_world.z = 0.0f;
+    }
   }
 
   if (key == GLFW_KEY_S)
@@ -1259,6 +1243,13 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
     player->position_world.x -= (player->front_direction.x * MOVE_SPEED);
 
     player->position_world.z -= (player->front_direction.z * MOVE_SPEED);
+
+    if (collisionBoxBox(g_VirtualScene["car"], g_VirtualScene["bunny"]))
+    {
+      player->position_world.x = 0.0f;
+      player->position_world.y = 0.0f;
+      player->position_world.z = 0.0f;
+    }
   }
 
   if (key == GLFW_KEY_D)
@@ -1266,6 +1257,13 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
     player->position_world.x += (player->side_direction.x * MOVE_SPEED);
 
     player->position_world.z += (player->side_direction.z * MOVE_SPEED);
+
+    if (collisionBoxBox(g_VirtualScene["car"], g_VirtualScene["bunny"]))
+    {
+      player->position_world.x = 0.0f;
+      player->position_world.y = 0.0f;
+      player->position_world.z = 0.0f;
+    }
   }
 
   if (key == GLFW_KEY_A)
@@ -1273,25 +1271,30 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
     player->position_world.x -= (player->side_direction.x * MOVE_SPEED);
 
     player->position_world.z -= (player->side_direction.z * MOVE_SPEED);
+
+    if (collisionBoxBox(g_VirtualScene["car"], g_VirtualScene["bunny"]))
+    {
+      player->position_world.x = 0.0f;
+      player->position_world.y = 0.0f;
+      player->position_world.z = 0.0f;
+    }
   }
-    //CAMERA'S MOVEMENT INPUTS IN FREE CAMERA MODE
-    if (key == GLFW_KEY_X)
+  //CAMERA'S MOVEMENT INPUTS IN FREE CAMERA MODE
+  if (key == GLFW_KEY_X)
   {
     g_FreeCameraPosition.x += (mod & GLFW_MOD_SHIFT) ? -FREECAMERA_SPEED : FREECAMERA_SPEED;
   }
 
   if (key == GLFW_KEY_Y)
   {
-     g_FreeCameraPosition.y += (mod & GLFW_MOD_SHIFT) ? -FREECAMERA_SPEED : FREECAMERA_SPEED;
-
+    g_FreeCameraPosition.y += (mod & GLFW_MOD_SHIFT) ? -FREECAMERA_SPEED : FREECAMERA_SPEED;
   }
 
   if (key == GLFW_KEY_Z)
   {
-     g_FreeCameraPosition.z += (mod & GLFW_MOD_SHIFT) ? -FREECAMERA_SPEED : FREECAMERA_SPEED;
-
+    g_FreeCameraPosition.z += (mod & GLFW_MOD_SHIFT) ? -FREECAMERA_SPEED : FREECAMERA_SPEED;
   }
-  
+
   // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
   if (key == GLFW_KEY_P && action == GLFW_PRESS)
   {
@@ -1309,7 +1312,7 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
   {
     g_ShowInfoText = !g_ShowInfoText;
   }
- // Se o usuário apertar a tecla F, fazemos um "toggle" entre mode de camera LookAt e Free Camera.
+  // Se o usuário apertar a tecla F, fazemos um "toggle" entre mode de camera LookAt e Free Camera.
   if (key == GLFW_KEY_F && action == GLFW_PRESS)
   {
     g_UseCameraModeFree = !g_UseCameraModeFree;
